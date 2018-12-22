@@ -50,8 +50,11 @@ def SkeletonDetection(frame):
             else :
                 points.append(None)
 
-    # facePoint = (points[0]+points[1]) / 2
-    # print(points[0],points[1],points[2],points[3])
-    facePoint=(int((points[0][0]+points[1][0])/2),int((points[0][1]+points[1][1])/2))
+
+    if (points[0] is None or points[1] is None):
+        facePoint = None
+    else:
+        facePoint=(int((points[0][0]+points[1][0])/2),int((points[0][1]+points[1][1])/2))
+
     return [facePoint,points[3],points[2] ]
     

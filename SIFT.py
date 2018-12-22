@@ -4,6 +4,10 @@ import cv2
 import glob
 import time
 
+global kpo,kpo_des
+kpo=[]
+kpo_des=[]
+
 def Initialization_point(kp,des,pointX,pointY):
     avgx=0
     avgy=0
@@ -50,11 +54,7 @@ def Track(kp,des,kpo,kpo_des):
     return [kpn_des,kpn,avgx,avgy,num]
 
 
-def track_it(frame, points,frameCount):
-    global kpo,kpo_des
-    if(frameCount==1):
-        kpo=[]
-        kpo_des=[]  
+def track_it(frame, points,frameCount):  
     gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     sift=cv2.xfeatures2d.SIFT_create()
     kp, des = sift.detectAndCompute(gray,None)
@@ -69,9 +69,10 @@ def track_it(frame, points,frameCount):
 
 def SIFTfunc(frame,point, kps, dess, index,frameCount ):
     if frameCount == 1:
-        [point_avgx,point_avgy,point_num,kpo[index],kpo_des[index]] = Initialization_point(kps,dess,point[0],point[1])
-        point[0]=(point_avgx/point_num)
-        point[1]=(point_avgy/point_num)
+        [point_avgx,point_avgy,point_num,kpoi,kpo_desi] = Initialization_point(kps,dess,point[0],point[1])
+        point= ((point_avgx/point_num),(point_avgy/point_num))
+        kpo.append(kpoi)
+        kpo_des.append(kpo_desi)
 
         return point
     #---------------------------------------------------------------- Tracking ----------------------------------------------------------------------#
@@ -89,8 +90,6 @@ def SIFTfunc(frame,point, kps, dess, index,frameCount ):
         
         [point_kpn_des,point_kpn,point_avgx,point_avgy,point_num] = Track(kp,des,kpo[index],kpo_des[index])
         
-
-
         if not point_num==0:
             point_pointX=(point_avgx/point_num)
             point_pointY=(point_avgy/point_num)

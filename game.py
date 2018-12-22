@@ -25,8 +25,6 @@ def detect_joints(img,level):
     bounds=[]
     if level==1:
         bounds=np.copy(level1_bounds)  
-   
-    print(bounds)
 
     points= NeuralNetworkSkeleton.SkeletonDetection(img)
     cond=True
@@ -37,8 +35,13 @@ def detect_joints(img,level):
             cond = False
         else:
             cond=cond and points[i][0]>bounds[k][0]-50 and points[i][0]<bounds[k+1][0]+50 and points[i][1]>bounds[k][1]-50 and points[i][1]<bounds[k+1][1]+50
-            print(cond,points[i])
         k+=2
+
+    # jointsFrame = np.copy(img)
+    # if cond == True:
+    #     for i in range(len(points)):
+    #         cv2.circle(jointsFrame,(int(points[i][0]),int(points[i][1])),2,(255,0,255),2)
+    #     cv2.imshow("joints",jointsFrame)
 
     return [cond,points]
 
@@ -103,8 +106,8 @@ def check_state(points,game):
     cond_win=True
     cond_loss=False
     for i in range(len(points)):
-        cond_win=cond_win and (game[points[i][1],points[i][0]]==finish_color)
-        cond_loss= cond_loss or (game[points[i][1],points[i][0]]==[0,0,0]) #black, out!!!
+        cond_win=cond_win and not (False in (game[int(points[i][1]),int(points[i][0])]==finish_color))
+        cond_loss= cond_loss or not (False in (game[int(points[i][1]),int(points[i][0])]==[0,0,0])) #black, out!!!
     return (cond_win, cond_loss)
 
 
@@ -139,8 +142,11 @@ while(True):
         PLAYING= DETECTED
         print("detect",DETECTED)
     elif (PLAYING==True):
-        points= SIFT.track_it(img,[points[1],points[2]],frameCount)
-        state = check_state(points)
+        # print("before",points)
+        points[1:3]= SIFT.track_it(img,[points[1],points[2]],frameCount)
+        # print("after",points)
+        # state = check_state(points,game[level-1])
+        state=[False,False]
         
         if state[0]==True:
             PLAYING=False
@@ -148,15 +154,22 @@ while(True):
         elif state[1]==True:
             cv2.imshow("Game",lose)
         else:
-            for i in range(len(points)):
-                cv2.circle(game[level-1],points(i),2,(0,0,255),2)     
-            cv2.imshow("Game",game[level-1])
+            gamecpy=np.copy(game[level-1])
             
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break   
+            for i in range(len(points)):
+                if level==1 and i==0:
+                    continue
+                cv2.circle(gamecpy,(int(points[i][0]),int(points[i][1])),10,(0,0,255),thickness=-1,lineType=cv2.FILLED) 
+                cv2.circle(img,(int(points[i][0]),int(points[i][1])),10,(0,0,255),thickness=-1,lineType=cv2.FILLED) 
+
+            cv2.imshow("real",img)
+            cv2.imshow("Game",gamecpy)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
 
-# When everything done, release the capture
-#cap.release()
+# When everything done, rele0ase the capture
+cap.release()
 cv2.destroyAllWindows() 
 
