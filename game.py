@@ -2,10 +2,13 @@
 import numpy as np
 import cv2
 import NeuralNetworkSkeleton
-import SIFT
+import SIFTfunc
+
+import time
 
 # from SIFTfunc import *
 level1_bounds=[(0,0),(640,480),(417,316),(417+80,316+50),(123,316),(123+80,316+50)]
+level2_bounds=[(0,0),(640,480),(417,316),(417+80,316+50),(123,316),(123+80,316+50)]
 
 game= [cv2.imread("images/Level1.png"),cv2.imread("images/Level2.png")]
 
@@ -34,7 +37,7 @@ def detect_joints(img,level):
         if points[i] is None:
             cond = False
         else:
-            cond=cond and points[i][0]>bounds[k][0]-50 and points[i][0]<bounds[k+1][0]+50 and points[i][1]>bounds[k][1]-50 and points[i][1]<bounds[k+1][1]+50
+            cond=cond and points[i][0]>bounds[k][0]-0 and points[i][0]<bounds[k+1][0]+0 and points[i][1]>bounds[k][1]-0 and points[i][1]<bounds[k+1][1]+0
         k+=2
 
     # jointsFrame = np.copy(img)
@@ -87,13 +90,33 @@ def detect_skin(img,bounds):
 
     return cond
 
+def detect_face(img):
+    face_cascade = cv2.CascadeClassifier('face_haar.xml')
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    away=False
+    if len(faces)>0:
+        (x,y,w,h) = faces[0]
+        color=(255,0,0)
+
+        if(w<70):
+            color=(0,0,255)
+            away=True
+
+        cv2.rectangle(img,(x,y),(x+w,y+h),color,2)
+        # print("face size ", w)
+
+    return away
+
+
+    
 
 def ini(img,level):
 
     
     if level==1:
-        START=(detect_skin(img,level1_bounds))
-        i=0
+        START=detect_face(img) and (detect_skin(img,level1_bounds)) 
+        i=2 
         while i<len(level1_bounds)-1:
             cv2.rectangle(img,level1_bounds[i],level1_bounds[i+1],(0,0,255),3)
             i=i+2
@@ -105,9 +128,11 @@ def ini(img,level):
 def check_state(points,game):
     cond_win=True
     cond_loss=False
+
     for i in range(len(points)):
-        cond_win=cond_win and not (False in (game[int(points[i][1]),int(points[i][0])]==finish_color))
-        cond_loss= cond_loss or not (False in (game[int(points[i][1]),int(points[i][0])]==[0,0,0])) #black, out!!!
+        if level==1 and i!=0:
+            cond_win=cond_win and not (False in (game[int(points[i][1]),int(points[i][0])]==finish_color))
+            cond_loss= cond_loss or not (False in (game[int(points[i][1]),int(points[i][0])]==[0,0,0])) #black, out!!!
     return (cond_win, cond_loss)
 
 
@@ -121,16 +146,27 @@ DETECTED=False
 PLAYING =False
 points=[]
 level=1
+
+
+# cv2.SetWindowProperty("Game", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
+cv2.namedWindow('Game',cv2.WINDOW_NORMAL)
+cv2.resizeWindow('Game', (int(3*480),int(3*640)))
+
+wait_2=False
+start_wait=time.time()
 while(True):
 
 
     ret,img = cap.read()
     img= cv2.flip(img,1)
-
     if START == False:
-        START=ini(img,level)
+        if((time.time()-start_wait)>2):
+             START=ini(img,level)
+             wait_2=False
+        else:
+            ini(img,level)
+
         cv2.imshow("Game",img)
-            
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     elif DETECTED==False:
@@ -140,13 +176,19 @@ while(True):
         [DETECTED,points]= detect_joints(img,level)
         START=DETECTED#caLL detection
         PLAYING= DETECTED
-        print("detect",DETECTED)
+        wait_2=not DETECTED
+        start_wait= time.time()
+        # print("detect",DETECTED)
     elif (PLAYING==True):
         # print("before",points)
-        points[1:3]= SIFT.track_it(img,[points[1],points[2]],frameCount)
+        
+        [my_points,yay]= SIFTfunc.track_it(img,[points[1],points[2]],frameCount)
+        if yay:
+            frameCount+=1
+            points[1:3]=my_points
         # print("after",points)
-        # state = check_state(points,game[level-1])
-        state=[False,False]
+        state = check_state(points,game[level-1])
+        # state=[False,False]
         
         if state[0]==True:
             PLAYING=False
@@ -155,7 +197,6 @@ while(True):
             cv2.imshow("Game",lose)
         else:
             gamecpy=np.copy(game[level-1])
-            
             for i in range(len(points)):
                 if level==1 and i==0:
                     continue
@@ -164,6 +205,7 @@ while(True):
 
             cv2.imshow("real",img)
             cv2.imshow("Game",gamecpy)
+            # cv2.resize("Game",960,640)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

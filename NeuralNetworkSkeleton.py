@@ -33,8 +33,9 @@ def SkeletonDetection(frame):
 
     # Empty list to store the detected keypoints
     points = []  
+    auxpoints=[]
     for i in range(nPoints):
-        if (i==0 or i == 1 or i==4 or i==7):
+        if (i==0 or i == 1 or i==4 or i==7 or i==3 or i==6):
             # confidence map of corresponding body's part.
             probMap = output[0, i, :, :]
 
@@ -46,15 +47,43 @@ def SkeletonDetection(frame):
             y = (frameHeight * point[1]) / H
 
             if prob > threshold : 
-                points.append((int(x), int(y)))
+                if(i==3 or i==6):
+                    auxpoints.append((int(x+0.5), int(y+0.5)))
+                else:
+                    points.append((int(x+0.5), int(y+0.5)))
             else :
-                points.append(None)
+                if(i==3 or i==6):
+                    auxpoints.append(None)
+                else:
+                    points.append(None)
 
+    # for (x,y) in points:
+    #     cv2.circle(frame,(x,y),2,(0,0,255),thickness=-1,lineType=cv2.FILLED)
+
+    if(auxpoints[0] is not None and auxpoints[1] is not None and points[2] is not None and points[3] is not None):
+        diff1=(0.5*(points[2][0]-auxpoints[0][0]),0.5*(points[2][1]-auxpoints[0][1]))
+        points[2]= ( int( points[2][0]+diff1[0]+0.5), int( points[2][1]+diff1[1]+0.5))
+        diff2=(0.5*(points[3][0]-auxpoints[1][0]),0.5*(points[3][1]-auxpoints[1][1]))
+        points[3]= ( int( points[3][0]+diff2[0]+0.5), int( points[3][1]+diff2[1]+0.5))
+
+
+#    print auxilarty points of elbow
+    # cv2.circle(frame,(auxpoints[0][0],auxpoints[0][1]),2,(0,255,255),thickness=-1,lineType=cv2.FILLED)
+    # cv2.circle(frame,(auxpoints[1][0],auxpoints[1][1]),2,(0,255,255),thickness=-1,lineType=cv2.FILLED)
+
+#
+    # cv2.circle(frame,(points[3][0],points[3][1]),2,(0,255,0),thickness=-1,lineType=cv2.FILLED)
+    # cv2.circle(frame,(points[2][0],points[2][1]),2,(0,255,0),thickness=-1,lineType=cv2.FILLED)
+
+    # while(1):
+    #     cv2.imshow("joints",frame)
+    #     if cv2.waitKey(1) & 0xFF == ord('q'):
+    #         break
 
     if (points[0] is None or points[1] is None):
         facePoint = None
     else:
-        facePoint=(int((points[0][0]+points[1][0])/2),int((points[0][1]+points[1][1])/2))
+        facePoint=(int(((points[0][0]+points[1][0])/2)+0.5),int(((points[0][1]+points[1][1])/2)+0.5))
 
     return [facePoint,points[3],points[2] ]
     

@@ -4,18 +4,8 @@ import cv2
 import glob
 import time
 
-frameCount=1 #Not sure about the global thing 
 kpo=[]
 kpo_des=[]
-
-# Initializing the white point to be tracked
-x=400  
-y=300
-
-# The last point that are passed to th function in order to modify it with the calculated displacement values
-lastx=400
-lasty=300
-
 
 # No changes Here
 def Initialization_point(kp,des,pointX,pointY):
@@ -27,7 +17,7 @@ def Initialization_point(kp,des,pointX,pointY):
     
     for i in range(len(kp)):
             d=euclidean(kp[i].pt,[pointX,pointY])
-            if d<30:
+            if d<15:
                 kpo.append(kp[i])
                 kpo_des.append(des[i])
                 avgx+=kp[i].pt[0]
@@ -65,9 +55,14 @@ def Track(kp,des,kpo,kpo_des):
             mininddiff=minind
 
     # setting displacement moved in both x,y
-    dispx=kp[mininddiff].pt[0]-kpo[minidxdiff].pt[0]
-    dispy=kp[mininddiff].pt[1]-kpo[minidxdiff].pt[1]
-    
+
+    if mininddiff !=-1 and minidxdiff !=-1:
+        dispx=kp[mininddiff].pt[0]-kpo[minidxdiff].pt[0]
+        dispy=kp[mininddiff].pt[1]-kpo[minidxdiff].pt[1]
+    else:
+        dispx = 0
+        dispy = 0
+
     #These checks to prevent shaky vibrations through eliminating small displacements 
     if(np.abs(dispx)<0.7):
         dispx=0
@@ -79,24 +74,34 @@ def Track(kp,des,kpo,kpo_des):
 
 #small change just in the return 
 def track_it(frame, points,f):  
+    # print(points,f)
     gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     sift=cv2.xfeatures2d.SIFT_create()
     kp, des = sift.detectAndCompute(gray,None)
     
     # This check to prevent craching of the program through passing no keypoints to be tracked
-    if(len(kp)==0):
-        return (-1,-1)
-
+    # if(len(kp)==0):
+    #     return (-1,-1)
+    
+    cond=True
+    # print ("SIFT",points)
     for i in range(len(points)):
         points[i]=SIFTfunc(frame,points[i],kp,des,i,f)
+        if(points[i][1]==-1):
+            cond=False
+
+    # print("points in sift",points)
     
-    return points
+    return [points,cond]
 
 
 #small change just in the return 
-def SIFTfunc(frame,point, kps, dess, index,f ):
+def SIFTfunc(frame,point, kps, dess, index,f):
     if f == 1:
         [point_avgx,point_avgy,point_num,kpoi,kpo_desi] = Initialization_point(kps,dess,point[0],point[1])
+        if(point_num==0):
+            # print("in point_num")
+            return (-1,-1)
         point= ((point_avgx/point_num),(point_avgy/point_num))
         
         kpo.append(kpoi)
@@ -111,76 +116,38 @@ def SIFTfunc(frame,point, kps, dess, index,f ):
         des=[]
         
         for i in range(len(allkp)):
-            if (euclidean(allkp[i].pt,[point[0],point[1]])<50):
+            if (euclidean(allkp[i].pt,[point[0],point[1]])<60):
                 kp.append(allkp[i])
                 des.append(alldes[i])
        
         # This check to prevent crashing through looping in no keypoints
         if(len(kp)==0):
+            # print("in len kp")
             return (-1,-1)       
         
         [point_kpn_des,point_kpn,point_dispx,point_dispy] = Track(kp,des,kpo[index],kpo_des[index])
         
-        # This check prevents abrupt sudden changes 
-        if(point_dispx>30 or point_dispy>30):
-            return (-1,-1) 
+        # # This check prevents abrupt sudden changes 
+        # if(point_dispx>30 or point_dispy>30):     
+        #     print("in disp size")
+        #     return (-1,-1) 
         
         # Updating point to be drawn
-        point_pointX=lastx+point_dispx
-        point_pointY=lasty+point_dispy
+        point_pointX=point[0]+point_dispx
+        point_pointY=point[1]+point_dispy
 
         point_kpn=[] 
         point_kpn_des=[]
         
         for j in range(len(allkp)):
                 di=euclidean([point_pointX,point_pointY],allkp[j].pt)
-                if di<30:
+                if di<15:
                     point_kpn.append(allkp[j])
                     point_kpn_des.append(alldes[j])
-                    cv2.circle(frame,(int(x+0.5),int(y+0.5)),2,(0,255,255),thickness=-1,lineType=cv2.FILLED)
+                    # cv2.circle(frame,(int(allkp[j].pt[0]+0.5),int(allkp[j].pt[1]+0.5)),2,(0,255,255),thickness=-1,lineType=cv2.FILLED)
     
         kpo[index]=np.copy(point_kpn)
         kpo_des[index]= np.copy(point_kpn_des)
 
         return (point_pointX,point_pointY)
 
-
-#****************************************************************      MAIN       **********************************************************************************
-
-cap = cv2.VideoCapture(0)
-start=False
-while(True):
-    ret,img = cap.read()
-    img= cv2.flip(img,1)
-    
-    #White point 
-    if(start==False):
-        cv2.circle(img,(int (x),int(y)),3,(255,255,255),thickness=-1,lineType=cv2.FILLED)
-        frameCount+=1
-        if(frameCount>100):
-            frameCount=1
-            start=True
-        cv2.imshow("real",img)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-        continue
-    
-    [(x,y)]=track_it(img,[(lastx,lasty)],frameCount)
-    # For any reason -1,-1 means a false tracking attempt
-    if(x==-1 or y==-1):
-        x=lastx
-        y=lasty
-    
-    frameCount+=1 # I incremented the frameCount here because the global variable thing was not working for some reason
-    cv2.circle(img,(int(x+0.5),int(y+0.5)),10,(0,0,255),thickness=-1,lineType=cv2.FILLED)
-    lastx=x
-    lasty=y
-    prev_img = np.copy(img)
-    cv2.imshow("real",img)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-
-# When everything done, rele0ase the capture
-cap.release()
-cv2.destroyAllWindows() 
